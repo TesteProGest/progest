@@ -10,6 +10,8 @@ from github import Github
 
 booleano = False
 
+tempTitle = ""
+
 conn = sqlite3.connect('timegen.db')
 try:
     conn.execute('''CREATE TABLE events
@@ -76,13 +78,13 @@ def signal_handler(signal, frame):
     totalTime = 0
     totalClicks = 0
     print ("terminating")
-    cur = conn.execute('select SHORT_NAME, count(EVENT_TYPE), sum(EVENT_TIME), count(EVENT_TYPE) / sum(EVENT_TIME) from events where USERNAME = ? and TASK = ? and PROJECT = ? group by 1', (username, taskID, projectName))
+    cur = conn.execute('select SHORT_NAME || "==>" || WINDOW_TITLE, count(EVENT_TYPE), sum(EVENT_TIME), count(EVENT_TYPE) / sum(EVENT_TIME) from events where USERNAME = ? and TASK = ? and PROJECT = ? group by 1', (username, taskID, projectName))
     #cur = conn.execute('select * from events')
     #res = [dict(username=row[0], projectName=row[1], taskID=row[2], tstamp=row[3], eventTime=row[4], eventType=row[5], windowShortName=row[6], windowTitle=row[7]) for row in cur.fetchall()]
     for row in cur.fetchall():
         totalTime = totalTime + row[2]
         totalClicks = totalClicks + row[1]
-    cur2 = conn.execute('select SHORT_NAME, count(EVENT_TYPE), sum(EVENT_TIME), count(EVENT_TYPE) / sum(EVENT_TIME) from events where USERNAME = ? and TASK = ? and PROJECT = ? group by 1', (username, taskID, projectName))
+    cur2 = conn.execute('select SHORT_NAME || "==>" || WINDOW_TITLE, count(EVENT_TYPE), sum(EVENT_TIME), count(EVENT_TYPE) / sum(EVENT_TIME) from events where USERNAME = ? and TASK = ? and PROJECT = ? group by 1', (username, taskID, projectName))
     res = [dict(SHORT_NAME=row[0],
             EVENT_COUNT=row[1],
             EVENT_TOTAL_TIME=row[2],
@@ -106,9 +108,15 @@ def log(tstamp,eventTime,eventType,windowShortName,windowTitle):
     global username
     global projectName
     global taskName
+    global tempTitle
+    if windowTitle == "":
+        windowTitle = tempTitle
+    else:
+        tempTitle = windowTitle
     if booleano == True:
         conn.execute("INSERT INTO events (USERNAME, PROJECT, TASK, TIMESTAMP, EVENT_TIME, EVENT_TYPE, SHORT_NAME, WINDOW_TITLE) \
-                    VALUES (?,?,?,?,?,?,?,?)", [username, projectName, taskID, tstamp, eventTime, eventType, windowShortName, windowTitle])
+                    VALUES (?,?,?,?,?,?,?,?)", [username, projectName, taskID, tstamp, eventTime, eventType, windowShortName, tempTitle])
+        print(tempTitle)
         conn.commit()
     booleano = True    
 
@@ -253,10 +261,10 @@ signal.signal(signal.SIGINT, signal_handler)
 
 #Chama a função main e escreve os headers do arquivo .csv
 if __name__ == '__main__':
-    username = input("Digite o nome de usuario: ")
-    password = input("Digite a senha: ")
-    org = input("Digite o nome da organizacao: ")
-    projectName = input("Digite o nome do repositorio / projeto: ")
+    username = "xanderayes" #input("Digite o nome de usuario: ")
+    password = "966d3V87."#input("Digite a senha: ")
+    org = "TesteProGest"#input("Digite o nome da organizacao: ")
+    projectName = "progest"#input("Digite o nome do repositorio / projeto: ")
     taskID = input("Digite o ID da tarefa / issue: ")
 
     while (testAuth(username, password, org, projectName, int(taskID)) == 0):
