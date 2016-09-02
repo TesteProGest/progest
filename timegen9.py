@@ -136,6 +136,7 @@ def signal_handler(signal, frame):
     
     plt.savefig('foo.png', bbox_inches='tight')
     #plt.show()
+    
     image = client.upload_from_path('foo.png',anon=False)
     link_img = '"' + image['link'] + '"'
     s=u"""<html>
@@ -182,6 +183,10 @@ def log(tstamp,eventTime,eventType,windowShortName,windowTitle):
     else:
         tempTitle = windowTitle
     if booleano == True:
+        if 'Stack Overflow' in tempTitle:
+            windowShortName = 'Stack Overflow'
+        if 'Facebook' in tempTitle:
+            windowShortName = 'Facebook'
         conn.execute("INSERT INTO events (USERNAME, PROJECT, TASK, TIMESTAMP, EVENT_TIME, EVENT_TYPE, SHORT_NAME, WINDOW_TITLE) \
                     VALUES (?,?,?,?,?,?,?,?)", [username, projectName, taskID, tstamp, eventTime, eventType, windowShortName, tempTitle])
         conn.commit()
