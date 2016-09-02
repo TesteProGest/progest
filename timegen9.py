@@ -6,7 +6,10 @@ import ctypes
 import ctypes.wintypes
 import time
 import signal
+import matplotlib.pyplot as plt
+from imgurpython import ImgurClient
 from github import Github
+
 
 booleano = False
 
@@ -67,6 +70,24 @@ threadFlag = getattr(win32con, 'THREAD_QUERY_LIMITED_INFORMATION',
 #Armazena o timestamp do último evento para mostrar o tempo entre eventos
 lastTime = 0
 
+def authenticate():
+    client_id = '8fbf5c5728003fa'
+    client_secret = 'f572e08a3005299aa5260a31c10edc7acb87b216'
+    client = ImgurClient(client_id, client_secret)
+    client.set_user_auth('6f5d0cf446bf216b9617e7a29bf637c212812fcc', '8b4641ffdf4c0cb66984466624f326461cf49600')
+    return client
+
+client = authenticate()    
+
+def make_autopct(values):
+    def my_autopct(pct):
+        total = sum(values)
+        segtotal = int(round(pct*total/100.0))
+        horas = int(segtotal / 3600)
+        mins = int((segtotal - horas * 3600) / 60)
+        segs = segtotal - 3600 * horas - 60 * mins
+        return '{p:.2f}%  ({h:2d}:{m:2d}:{s:2d})'.format(p=pct,h=horas,m=mins,s=segs)
+    return my_autopct
 
 #[Temporário] Recebe o sinal de Ctrl + C para parar o programa e salvar o .csv
 def signal_handler(signal, frame):
@@ -75,29 +96,76 @@ def signal_handler(signal, frame):
     global projectName
     global org
     global password
+    global client
     totalTime = 0
     totalClicks = 0
     print ("terminating")
-    cur = conn.execute('select SHORT_NAME || "==>" || WINDOW_TITLE, count(EVENT_TYPE), sum(EVENT_TIME), count(EVENT_TYPE) / sum(EVENT_TIME) from events where USERNAME = ? and TASK = ? and PROJECT = ? group by 1', (username, taskID, projectName))
+    cur = conn.execute('select SHORT_NAME , count(EVENT_TYPE), sum(EVENT_TIME), count(EVENT_TYPE) / sum(EVENT_TIME) from events where USERNAME = ? and TASK = ? and PROJECT = ? group by 1', (username, taskID, projectName))
     #cur = conn.execute('select * from events')
     #res = [dict(username=row[0], projectName=row[1], taskID=row[2], tstamp=row[3], eventTime=row[4], eventType=row[5], windowShortName=row[6], windowTitle=row[7]) for row in cur.fetchall()]
+    totalLinhas = 0
     for row in cur.fetchall():
         totalTime = totalTime + row[2]
         totalClicks = totalClicks + row[1]
-    cur2 = conn.execute('select SHORT_NAME || "==>" || WINDOW_TITLE, count(EVENT_TYPE), sum(EVENT_TIME), count(EVENT_TYPE) / sum(EVENT_TIME) from events where USERNAME = ? and TASK = ? and PROJECT = ? group by 1', (username, taskID, projectName))
-    res = [dict(SHORT_NAME=row[0],
-            EVENT_COUNT=row[1],
-            EVENT_TOTAL_TIME=row[2],
-            CLICKS_PER_SECOND=row[3],
-            CLICK_PROPORTION=row[1] / totalClicks,
-            TIME_PROPORTION=row[2] / totalTime) for row in cur2.fetchall()]
-    s=username + "," + projectName + "," + taskID + "\n"
+        totalLinhas += 1
+    cur2 = conn.execute('select SHORT_NAME , count(EVENT_TYPE), sum(EVENT_TIME), count(EVENT_TYPE) / sum(EVENT_TIME) from events where USERNAME = ? and TASK = ? and PROJECT = ? group by 1', (username, taskID, projectName))
+    res = [[0 for x in range(6)] for y in range(totalLinhas)]
+    titles = []
+    times = []
+    #res[0][0] = "Window Title"
+    #res[0][1] = "Click count"
+    #res[0][2] = "Total time"
+    #res[0][3] = "Clicks per second"
+    #res[0][4] = "Clicks by total"
+    #res[0][5] = "Time by total"
     
-    for key in res:
-        s +=str(key)
-        s +="\n"
-    Github(username,password).get_organization(org).get_repo(projectName).get_issue(int(taskID)).create_comment(s)    
+    i = 0
+    for row in cur2.fetchall():
+        res[i][0] = row[0]
+        res[i][1] = row[1]
+        res[i][2] = row[2]
+        res[i][3] = row[3]
+        res[i][4] = row[1] / totalClicks
+        res[i][5] = row[2] / totalTime
+        titles.append(row[0])
+        times.append(row[2])
+        i += 1
+
+    plt.pie(times,labels=titles,autopct=make_autopct(times),shadow=True,startangle=70)
+    plt.axis('equal')
+    
+    plt.savefig('foo.png', bbox_inches='tight')
+    #plt.show()
+    image = client.upload_from_path('foo.png',anon=False)
+    link_img = '"' + image['link'] + '"'
+    s=u"""<html>
+				<head>
+					<title>afe</title>
+				</head>
+				<body>
+					<figure>
+						<img src= %s alt="Nao deu" width="400" height="400" />
+					</figure>
+
+				</body>
+			</html>""" % link_img
+    
+        
+    #s=username + "," + projectName + "," + taskID + "\n"
+    #graphX = []
+    #graphy = []
+    #for x in res:
+        #print(x)
+        #s +=str(key)
+        #s +="\n"
+        #graphX.append(key().[0])
+        #graphY.append(key[1])
+    #Github(username,password).get_organization(org).get_repo(projectName).get_issue(int(taskID)).create_comment(s)
+    Github(username,password).get_organization(org).get_repo(projectName).get_issue(int(taskID)).create_comment(s)
     conn.close()
+    
+    #print(graphX)
+    #print(graphY)
     sys.exit()
 
 
@@ -116,7 +184,6 @@ def log(tstamp,eventTime,eventType,windowShortName,windowTitle):
     if booleano == True:
         conn.execute("INSERT INTO events (USERNAME, PROJECT, TASK, TIMESTAMP, EVENT_TIME, EVENT_TYPE, SHORT_NAME, WINDOW_TITLE) \
                     VALUES (?,?,?,?,?,?,?,?)", [username, projectName, taskID, tstamp, eventTime, eventType, windowShortName, tempTitle])
-        print(tempTitle)
         conn.commit()
     booleano = True    
 
@@ -261,10 +328,10 @@ signal.signal(signal.SIGINT, signal_handler)
 
 #Chama a função main e escreve os headers do arquivo .csv
 if __name__ == '__main__':
-    username = "xanderayes" #input("Digite o nome de usuario: ")
-    password = "966d3V87."#input("Digite a senha: ")
-    org = "TesteProGest"#input("Digite o nome da organizacao: ")
-    projectName = "progest"#input("Digite o nome do repositorio / projeto: ")
+    username = input("Digite o nome de usuario: ")
+    password = input("Digite a senha: ")
+    org = input("Digite o nome da organizacao: ")
+    projectName = input("Digite o nome do repositorio / projeto: ")
     taskID = input("Digite o ID da tarefa / issue: ")
 
     while (testAuth(username, password, org, projectName, int(taskID)) == 0):
