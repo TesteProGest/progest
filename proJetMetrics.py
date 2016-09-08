@@ -131,10 +131,8 @@ def start():
 
 
 ## Auth
-#user = input("user: ")
-#senha = input("senha(: ")
-user = "ViniciusBVilar"
-senha = "asdf1234"
+user = input("user: ")
+senha = input("senha(: ")
 org = "TesteProGest"
 repo = "progest"
 #org = "indigotech"
