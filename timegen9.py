@@ -4,12 +4,13 @@ import win32con
 import sys
 import ctypes
 import ctypes.wintypes
+import numpy as np
 import time
 import signal
 import matplotlib.pyplot as plt
 from imgurpython import ImgurClient
 from github import Github
-
+from easygui import *
 
 booleano = False
 
@@ -79,7 +80,7 @@ def authenticate():
 
 client = authenticate()    
 
-def make_autopct(values):
+def make_autopct_time(values):
     def my_autopct(pct):
         total = sum(values)
         segtotal = int(round(pct*total/100.0))
@@ -89,8 +90,15 @@ def make_autopct(values):
         return '{p:.2f}%  ({h:2d}:{m:2d}:{s:2d})'.format(p=pct,h=horas,m=mins,s=segs)
     return my_autopct
 
+def format_time(tstamp):
+    horas = int(tstamp / 3600)
+    mins = int((tstamp - horas * 3600)/60)
+    segs = int(tstamp - horas * 3600 - mins / 60)
+    return '{h}:{m}:{s}'.format(h=horas,m=mins,s=segs)
+
+
 #[Temporário] Recebe o sinal de Ctrl + C para parar o programa e salvar o .csv
-def signal_handler(signal, frame):
+def signal_handler():
     global username
     global taskID
     global projectName
@@ -112,6 +120,8 @@ def signal_handler(signal, frame):
     res = [[0 for x in range(6)] for y in range(totalLinhas)]
     titles = []
     times = []
+    fTimes = []
+    clicks = []
     #res[0][0] = "Window Title"
     #res[0][1] = "Click count"
     #res[0][2] = "Total time"
@@ -129,23 +139,40 @@ def signal_handler(signal, frame):
         res[i][5] = row[2] / totalTime
         titles.append(row[0])
         times.append(row[2])
+        fTimes.append(format_time(row[2]))
+        clicks.append(row[1])
         i += 1
 
-    plt.pie(times,labels=titles,autopct=make_autopct(times),shadow=True,startangle=70)
-    plt.axis('equal')
+    #pie = plt.subplot(211)    
+    #pie = plt.pie(times,autopct=make_autopct_time(times),shadow=True,startangle=70)
+    #plt.axis('equal')
+    #plt.legend(pie[0],titles, loc='upper right')
+
+    #pie2 =  plt.subplot(212) #'%.2f'
+    #pie2 = plt.pie(clicks,autopct=make_autopct_click(clicks),shadow=True,startangle=70)
+    #plt.axis('equal')
+    #plt.legend(pie2[0],titles, loc='upper right')
+
+    y_pos = np.arange(len(titles))
+    plt.barh(y_pos, times, align='center', alpha=0.4)
+    plt.yticks(y_pos, titles)
+    plt.xticks(times, fTimes)
+    plt.xlabel('Total_time')
+    plt.title('Total time per window')
     
     plt.savefig('foo.png', bbox_inches='tight')
-    #plt.show()
+    plt.show()
     
     image = client.upload_from_path('foo.png',anon=False)
+    print('image uploaded')
     link_img = '"' + image['link'] + '"'
     s=u"""<html>
 				<head>
-					<title>afe</title>
+					<title>total_time_and_clicks</title>
 				</head>
 				<body>
 					<figure>
-						<img src= %s alt="Nao deu" width="400" height="400" />
+						<img src= %s alt="graphs" />
 					</figure>
 
 				</body>
@@ -163,7 +190,9 @@ def signal_handler(signal, frame):
         #graphY.append(key[1])
     #Github(username,password).get_organization(org).get_repo(projectName).get_issue(int(taskID)).create_comment(s)
     Github(username,password).get_organization(org).get_repo(projectName).get_issue(int(taskID)).create_comment(s)
+    print('image sent')
     conn.close()
+    print('connection closed')
     
     #print(graphX)
     #print(graphY)
@@ -318,9 +347,14 @@ def main():
         sys.exit(1)
 
     msg = ctypes.wintypes.MSG()
-    while user32.GetMessageW(ctypes.byref(msg), 0, 0, 0) != 0:
-        user32.TranslateMessageW(msg)
-        user32.DispatchMessageW(msg)
+    if ccbox('Clique em "Continue" para finalizar a execucao da tarefa', 'Finalizar captacao'):
+        signal_handler()
+    try:
+        while user32.GetMessageW(ctypes.byref(msg), 0, 0, 0) != 0:
+                user32.TranslateMessageW(msg)
+                user32.DispatchMessageW(msg)
+    except:
+        pass
 
     for hookID in hookIDs:
         user32.UnhookWinEvent(hookID)
@@ -333,18 +367,18 @@ signal.signal(signal.SIGINT, signal_handler)
 
 #Chama a função main e escreve os headers do arquivo .csv
 if __name__ == '__main__':
-    username = input("Digite o nome de usuario: ")
-    password = input("Digite a senha: ")
-    org = input("Digite o nome da organizacao: ")
-    projectName = input("Digite o nome do repositorio / projeto: ")
-    taskID = input("Digite o ID da tarefa / issue: ")
+    username = enterbox('Digite o nome de usuario: ', 'username')
+    password = passwordbox('Digite a senha: ', 'password')
+    org = enterbox("Digite o nome da organizacao: ", 'organization')
+    projectName = enterbox("Digite o nome do repositorio / projeto: ", 'repository')
+    taskID = integerbox("Digite o ID da tarefa / issue: ", 'issue')
 
     while (testAuth(username, password, org, projectName, int(taskID)) == 0):
-        print("Erro... tente novamente")
-        username = input("Digite o nome de usuario: ")
-        password = input("Digite a senha: ")
-        org = input("Digite o nome da organizacao: ")
-        projectName = input("Digite o nome do repositorio / projeto: ")
-        taskID = input("Digite o ID da tarefa / issue: ")
+        msgbox("Erro... tente novamente")
+        username = enterbox('Digite o nome de usuario: ', 'username')
+        password = passwordbox('Digite a senha: ', 'password')
+        org = enterbox("Digite o nome da organizacao: ", 'organization')
+        projectName = enterbox("Digite o nome do repositorio / projeto: ", 'repository')
+        taskID = integerbox("Digite o ID da tarefa / issue: ", 'issue')
     print("iniciando captacao")
     main()
