@@ -162,7 +162,7 @@ def signal_handler():
     timesVector = []
     timesVectorF = []
     for x in range(0,9):
-        t = (x+1) * (totalTime / 10)
+        t = (x+2) * (totalTime / 10)
         timesVector.append(t)
         timesVectorF.append(format_time(t))
         
