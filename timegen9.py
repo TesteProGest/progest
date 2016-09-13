@@ -91,10 +91,17 @@ def make_autopct_time(values):
     return my_autopct
 
 def format_time(tstamp):
-    horas = int(tstamp / 3600)
-    mins = int((tstamp - horas * 3600)/60)
-    segs = int(tstamp - horas * 3600 - mins / 60)
-    return '{h}:{m}:{s}'.format(h=horas,m=mins,s=segs)
+    x = int(tstamp)
+    seconds = int(x % 60)
+    x = int(x/60)
+    minutes = int(x % 60)
+    x = int(x/60)
+    hours = int(x)
+
+    #horas = int(tstamp / 3600)
+    #mins = int((tstamp - horas * 3600)/60)
+    #segs = int(tstamp - horas * 3600 - mins / 60)
+    return '{h}:{m}:{s}'.format(h=hours,m=minutes,s=seconds)
 
 
 #[Temporário] Recebe o sinal de Ctrl + C para parar o programa e salvar o .csv
@@ -152,12 +159,15 @@ def signal_handler():
     #pie2 = plt.pie(clicks,autopct=make_autopct_click(clicks),shadow=True,startangle=70)
     #plt.axis('equal')
     #plt.legend(pie2[0],titles, loc='upper right')
-
+    timesVector = []
+    for x in range(0,9):
+        timesVector.append(int((x+1) * (totalTime / 10)))
+    
     y_pos = np.arange(len(titles))
     plt.barh(y_pos, times, align='center', alpha=0.4)
     plt.yticks(y_pos, titles)
-    plt.xticks(times, fTimes)
-    plt.xlabel('Total_time')
+    plt.xticks(timesVector, timesVector)
+    plt.xlabel('Total time (seconds)')
     plt.title('Total time per window')
     
     plt.savefig('foo.png', bbox_inches='tight')
@@ -168,7 +178,7 @@ def signal_handler():
     link_img = '"' + image['link'] + '"'
     s=u"""<html>
 				<head>
-					<title>total_time_and_clicks</title>
+					<title>Total_time= %s</title>
 				</head>
 				<body>
 					<figure>
@@ -176,7 +186,7 @@ def signal_handler():
 					</figure>
 
 				</body>
-			</html>""" % link_img
+			</html>""" % (format_time(totalTime), link_img)
     
         
     #s=username + "," + projectName + "," + taskID + "\n"
