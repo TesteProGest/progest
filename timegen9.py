@@ -160,14 +160,18 @@ def signal_handler():
     #plt.axis('equal')
     #plt.legend(pie2[0],titles, loc='upper right')
     timesVector = []
+    timesVectorF = []
     for x in range(0,9):
-        timesVector.append(int((x+1) * (totalTime / 10)))
+        t = (x+1) * (totalTime / 10)
+        timesVector.append(t)
+        timesVectorF.append(format_time(t))
+        
     
     y_pos = np.arange(len(titles))
     plt.barh(y_pos, times, align='center', alpha=0.4)
     plt.yticks(y_pos, titles)
-    plt.xticks(timesVector, timesVector)
-    plt.xlabel('Total time (seconds)')
+    plt.xticks(timesVector, timesVectorF)
+    plt.xlabel('Total time')
     plt.title('Total time per window')
     
     plt.savefig('foo.png', bbox_inches='tight')
