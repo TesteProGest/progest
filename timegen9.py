@@ -1,6 +1,7 @@
 #Imports necessarios para ter acesso aos eventos do windows, para manipular os aqruivos .csv, para administrar o tempo e ler sinais do sistema.
 import sqlite3
 import win32con
+import datetime
 import sys
 import ctypes
 import ctypes.wintypes
@@ -12,14 +13,19 @@ from imgurpython import ImgurClient
 from github import Github
 from easygui import *
 
+
 booleano = False
 
 tempTitle = ""
 
+inicioSessao = datetime.datetime.now()
+
+
 conn = sqlite3.connect('timegen.db')
 try:
     conn.execute('''CREATE TABLE events
-           (USERNAME TEXT NOT NULL,
+           (SESSION INTEGER NOT NULL,
+            USERNAME TEXT NOT NULL,
             PROJECT TEXT NOT NULL,
             TASK INTEGER NOT NULL,
             TIMESTAMP INTEGER NOT NULL,
@@ -30,6 +36,16 @@ try:
     print ("Table created successfully");
 except:
     pass
+
+cur_session = conn.execute('SELECT DISTINCT MAX(SESSION) FROM events')
+try:
+    for row in cur_session.fetchall():
+        session = row[0] + 1
+except:
+    session = 0
+print(session)
+    
+
 
 
 #Ctypes é uma biblioteca de funções externas para python. Permite chamar funções em arquivos .dll ou em bibliotecas compartilhadas.
@@ -105,13 +121,14 @@ def format_time(tstamp):
 
 
 #[Temporário] Recebe o sinal de Ctrl + C para parar o programa e salvar o .csv
-def signal_handler():
+def signal_handle(answer):
     global username
     global taskID
     global projectName
     global org
     global password
     global client
+    global session
     totalTime = 0
     totalClicks = 0
     print ("terminating")
@@ -203,19 +220,38 @@ def signal_handler():
         #graphX.append(key().[0])
         #graphY.append(key[1])
     #Github(username,password).get_organization(org).get_repo(projectName).get_issue(int(taskID)).create_comment(s)
+        #print(graphX)
+    #print(graphY)
     Github(username,password).get_organization(org).get_repo(projectName).get_issue(int(taskID)).create_comment(s)
     print('image sent')
-    conn.close()
-    print('connection closed')
-    
-    #print(graphX)
-    #print(graphY)
-    sys.exit()
+    if (answer == 1):
+        g = Github(username,password).get_organization(org).get_repo(projectName).get_issues()
+        for x in g:
+            if x.title == username:
+                issueID = x.number
+        
+        fimSessao = datetime.datetime.now()
+        totalString = "Sessao {0}, de {1} ate {2} \n".format(session, inicioSessao, fimSessao)
+        cur = conn.execute('select SHORT_NAME , sum(EVENT_TIME) from events where SESSION = ? group by 1', (session,))
+        for row in cur.fetchall():
+            totalString = totalString + row[0] + "=>" + format_time(row[1]) + "\n"
+        Github(username,password).get_organization(org).get_repo(projectName).get_issue(int(issueID)).create_comment(totalString)
+        conn.close()
+        print('connection closed')
+        sys.exit()
+    else:
+        taskID = integerbox("Digite o ID da tarefa / issue: ", 'issue')
+        while (testAuth(username, password, org, projectName, int(taskID)) == 0):
+            msgbox("Erro... issue nao encontrada")
+            taskID = integerbox("Digite o ID da tarefa / issue: ", 'issue')
+        print("iniciando nova captacao")
+        main()
 
 
 #Salva no arquivo de logs o timestamp do evento, o tempo gasto em cada evento,
 #o tipo de evento e o nome de cada janela aberta
 def log(tstamp,eventTime,eventType,windowShortName,windowTitle):
+    global session
     global booleano
     global username
     global projectName
@@ -230,8 +266,8 @@ def log(tstamp,eventTime,eventType,windowShortName,windowTitle):
             windowShortName = 'Stack Overflow'
         if 'Facebook' in tempTitle:
             windowShortName = 'Facebook'
-        conn.execute("INSERT INTO events (USERNAME, PROJECT, TASK, TIMESTAMP, EVENT_TIME, EVENT_TYPE, SHORT_NAME, WINDOW_TITLE) \
-                    VALUES (?,?,?,?,?,?,?,?)", [username, projectName, taskID, tstamp, eventTime, eventType, windowShortName, tempTitle])
+        conn.execute("INSERT INTO events (SESSION, USERNAME, PROJECT, TASK, TIMESTAMP, EVENT_TIME, EVENT_TYPE, SHORT_NAME, WINDOW_TITLE) \
+                    VALUES (?,?,?,?,?,?,?,?,?)", [session, username, projectName, taskID, tstamp, eventTime, eventType, windowShortName, tempTitle])
         conn.commit()
     booleano = True    
 
@@ -361,8 +397,10 @@ def main():
         sys.exit(1)
 
     msg = ctypes.wintypes.MSG()
-    if ccbox('Clique em "Continue" para finalizar a execucao da tarefa', 'Finalizar captacao'):
-        signal_handler()
+    if ccbox('Clique em "Continue" para finalizar a execucao da tarefa ou em "Cancel" para executar outra tarefa', 'Finalizar captacao'):
+        signal_handle(1)
+    else:
+        signal_handle(2)
     try:
         while user32.GetMessageW(ctypes.byref(msg), 0, 0, 0) != 0:
                 user32.TranslateMessageW(msg)
@@ -376,7 +414,9 @@ def main():
 
 
 #Recebe o sinal de Ctrl + C ao final da execução 
-signal.signal(signal.SIGINT, signal_handler)
+#signal.signal(signal.SIGINT, signal_handler)
+
+
 
 
 #Chama a função main e escreve os headers do arquivo .csv
