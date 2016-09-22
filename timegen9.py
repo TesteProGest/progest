@@ -240,9 +240,9 @@ def signal_handle(answer):
         
         fimSessao = datetime.datetime.now()
         totalString = "Sessao {0}, de {1} ate {2} \n".format(session, inicioSessao, fimSessao)
-        cur = conn.execute('select SHORT_NAME , sum(EVENT_TIME) from events where SESSION = ? group by 1', (session,))
+        cur = conn.execute('select TASK,  SHORT_NAME , sum(EVENT_TIME) from events where SESSION = ? group by 1,2', (session,))
         for row in cur.fetchall():
-            totalString = totalString + row[0] + "=>" + format_time(row[1]) + "\n"
+            totalString = totalString + "TaskID: " + str(row[0]) + "=>" + row[1] + "=>" + format_time(row[2]) + "\n"
         g2 = Github(username,password).get_organization(org).get_repo(projectName).get_issue(int(issueID))
 
         g2.create_comment(totalString)
