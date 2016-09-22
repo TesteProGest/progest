@@ -159,8 +159,8 @@ def signal_handle(answer):
         res[i][1] = row[1]
         res[i][2] = row[2]
         res[i][3] = row[3]
-        res[i][4] = row[1] / totalClicks
-        res[i][5] = row[2] / totalTime
+        #res[i][4] = row[1] / totalClicks
+        #res[i][5] = row[2] / totalTime
         titles.append(row[0])
         times.append(row[2])
         fTimes.append(format_time(row[2]))
@@ -192,7 +192,7 @@ def signal_handle(answer):
     plt.title('Total time per window')
     
     plt.savefig('foo.png', bbox_inches='tight')
-    plt.show()
+    #plt.show()
     
     image = client.upload_from_path('foo.png',anon=False)
     print('image uploaded')
@@ -222,7 +222,15 @@ def signal_handle(answer):
     #Github(username,password).get_organization(org).get_repo(projectName).get_issue(int(taskID)).create_comment(s)
         #print(graphX)
     #print(graphY)
-    Github(username,password).get_organization(org).get_repo(projectName).get_issue(int(taskID)).create_comment(s)
+        
+    g1 = Github(username,password).get_organization(org).get_repo(projectName).get_issue(int(taskID))
+    c1 = g1.get_comments()
+    for x1 in c1:
+            if x1.user.login == username:
+                if x1.body.find('Total_time=') != -1:
+                    x1.delete()
+                    print('deleted')
+    g1.create_comment(s)
     print('image sent')
     if (answer == 1):
         g = Github(username,password).get_organization(org).get_repo(projectName).get_issues()
@@ -235,7 +243,9 @@ def signal_handle(answer):
         cur = conn.execute('select SHORT_NAME , sum(EVENT_TIME) from events where SESSION = ? group by 1', (session,))
         for row in cur.fetchall():
             totalString = totalString + row[0] + "=>" + format_time(row[1]) + "\n"
-        Github(username,password).get_organization(org).get_repo(projectName).get_issue(int(issueID)).create_comment(totalString)
+        g2 = Github(username,password).get_organization(org).get_repo(projectName).get_issue(int(issueID))
+
+        g2.create_comment(totalString)
         conn.close()
         print('connection closed')
         sys.exit()
@@ -421,10 +431,10 @@ def main():
 
 #Chama a função main e escreve os headers do arquivo .csv
 if __name__ == '__main__':
-    username = enterbox('Digite o nome de usuario: ', 'username')
-    password = passwordbox('Digite a senha: ', 'password')
-    org = enterbox("Digite o nome da organizacao: ", 'organization')
-    projectName = enterbox("Digite o nome do repositorio / projeto: ", 'repository')
+    username = 'xanderayes'#enterbox('Digite o nome de usuario: ', 'username')
+    password = '966d3V87.'#passwordbox('Digite a senha: ', 'password')
+    org = 'TesteProGest'#enterbox("Digite o nome da organizacao: ", 'organization')
+    projectName = 'progest'#enterbox("Digite o nome do repositorio / projeto: ", 'repository')
     taskID = integerbox("Digite o ID da tarefa / issue: ", 'issue')
 
     while (testAuth(username, password, org, projectName, int(taskID)) == 0):
