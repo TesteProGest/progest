@@ -5,11 +5,7 @@ import datetime
 import sys
 import ctypes
 import ctypes.wintypes
-import numpy as np
 import time
-import signal
-import matplotlib.pyplot as plt
-from imgurpython import ImgurClient
 from github import Github
 from easygui import *
 
@@ -87,24 +83,9 @@ threadFlag = getattr(win32con, 'THREAD_QUERY_LIMITED_INFORMATION',
 #Armazena o timestamp do último evento para mostrar o tempo entre eventos
 lastTime = 0
 
-def authenticate():
-    client_id = '8fbf5c5728003fa'
-    client_secret = 'f572e08a3005299aa5260a31c10edc7acb87b216'
-    client = ImgurClient(client_id, client_secret)
-    client.set_user_auth('6f5d0cf446bf216b9617e7a29bf637c212812fcc', '8b4641ffdf4c0cb66984466624f326461cf49600')
-    return client
+ 
 
-client = authenticate()    
 
-def make_autopct_time(values):
-    def my_autopct(pct):
-        total = sum(values)
-        segtotal = int(round(pct*total/100.0))
-        horas = int(segtotal / 3600)
-        mins = int((segtotal - horas * 3600) / 60)
-        segs = segtotal - 3600 * horas - 60 * mins
-        return '{p:.2f}%  ({h:2d}:{m:2d}:{s:2d})'.format(p=pct,h=horas,m=mins,s=segs)
-    return my_autopct
 
 def format_time(tstamp):
     x = int(tstamp)
@@ -114,13 +95,9 @@ def format_time(tstamp):
     x = int(x/60)
     hours = int(x)
 
-    #horas = int(tstamp / 3600)
-    #mins = int((tstamp - horas * 3600)/60)
-    #segs = int(tstamp - horas * 3600 - mins / 60)
     return '{h}:{m}:{s}'.format(h=hours,m=minutes,s=seconds)
 
 
-#[Temporário] Recebe o sinal de Ctrl + C para parar o programa e salvar o .csv
 def signal_handle(answer):
     global username
     global taskID
@@ -129,123 +106,32 @@ def signal_handle(answer):
     global password
     global client
     global session
-    totalTime = 0
-    totalClicks = 0
     print ("terminating")
-    cur = conn.execute('select SHORT_NAME , count(EVENT_TYPE), sum(EVENT_TIME), count(EVENT_TYPE) / sum(EVENT_TIME) from events where USERNAME = ? and TASK = ? and PROJECT = ? group by 1', (username, taskID, projectName))
-    #cur = conn.execute('select * from events')
-    #res = [dict(username=row[0], projectName=row[1], taskID=row[2], tstamp=row[3], eventTime=row[4], eventType=row[5], windowShortName=row[6], windowTitle=row[7]) for row in cur.fetchall()]
-    totalLinhas = 0
-    for row in cur.fetchall():
-        totalTime = totalTime + row[2]
-        totalClicks = totalClicks + row[1]
-        totalLinhas += 1
-    cur2 = conn.execute('select SHORT_NAME , count(EVENT_TYPE), sum(EVENT_TIME), count(EVENT_TYPE) / sum(EVENT_TIME) from events where USERNAME = ? and TASK = ? and PROJECT = ? group by 1', (username, taskID, projectName))
-    res = [[0 for x in range(6)] for y in range(totalLinhas)]
-    titles = []
-    times = []
-    fTimes = []
-    clicks = []
-    #res[0][0] = "Window Title"
-    #res[0][1] = "Click count"
-    #res[0][2] = "Total time"
-    #res[0][3] = "Clicks per second"
-    #res[0][4] = "Clicks by total"
-    #res[0][5] = "Time by total"
-    
-    i = 0
-    for row in cur2.fetchall():
-        res[i][0] = row[0]
-        res[i][1] = row[1]
-        res[i][2] = row[2]
-        res[i][3] = row[3]
-        #res[i][4] = row[1] / totalClicks
-        #res[i][5] = row[2] / totalTime
-        titles.append(row[0])
-        times.append(row[2])
-        fTimes.append(format_time(row[2]))
-        clicks.append(row[1])
-        i += 1
-
-    #pie = plt.subplot(211)    
-    #pie = plt.pie(times,autopct=make_autopct_time(times),shadow=True,startangle=70)
-    #plt.axis('equal')
-    #plt.legend(pie[0],titles, loc='upper right')
-
-    #pie2 =  plt.subplot(212) #'%.2f'
-    #pie2 = plt.pie(clicks,autopct=make_autopct_click(clicks),shadow=True,startangle=70)
-    #plt.axis('equal')
-    #plt.legend(pie2[0],titles, loc='upper right')
-    timesVector = []
-    timesVectorF = []
-    for x in range(0,9):
-        t = (x+2) * (totalTime / 10)
-        timesVector.append(t)
-        timesVectorF.append(format_time(t))
-        
-    
-    y_pos = np.arange(len(titles))
-    plt.barh(y_pos, times, align='center', alpha=0.4)
-    plt.yticks(y_pos, titles)
-    plt.xticks(timesVector, timesVectorF)
-    plt.xlabel('Total time')
-    plt.title('Total time per window')
-    
-    plt.savefig('foo.png', bbox_inches='tight')
-    #plt.show()
-    
-    image = client.upload_from_path('foo.png',anon=False)
-    print('image uploaded')
-    link_img = '"' + image['link'] + '"'
-    s=u"""<html>
-				<head>
-					<title>Total_time= %s</title>
-				</head>
-				<body>
-					<figure>
-						<img src= %s alt="graphs" />
-					</figure>
-
-				</body>
-			</html>""" % (format_time(totalTime), link_img)
-    
-        
-    #s=username + "," + projectName + "," + taskID + "\n"
-    #graphX = []
-    #graphy = []
-    #for x in res:
-        #print(x)
-        #s +=str(key)
-        #s +="\n"
-        #graphX.append(key().[0])
-        #graphY.append(key[1])
-    #Github(username,password).get_organization(org).get_repo(projectName).get_issue(int(taskID)).create_comment(s)
-        #print(graphX)
-    #print(graphY)
-        
-    g1 = Github(username,password).get_organization(org).get_repo(projectName).get_issue(int(taskID))
-    c1 = g1.get_comments()
-    for x1 in c1:
-            if x1.user.login == username:
-                if x1.body.find('Total_time=') != -1:
-                    x1.delete()
-                    print('deleted')
-    g1.create_comment(s)
-    print('image sent')
-    if (answer == 1):
+   
+    if (answer != 1):
         g = Github(username,password).get_organization(org).get_repo(projectName).get_issues()
         for x in g:
             if x.title == username:
                 issueID = x.number
         
         fimSessao = datetime.datetime.now()
-        totalString = "Sessao {0}, de {1} ate {2} \n".format(session, inicioSessao, fimSessao)
+        totalString=''
+        header1 = "{"
+        header2 = "'session': " + '"{0}", '.format(session) + "'username': "+ '"{0}", '.format(username) + "'repo': "+'"{0}", '.format(projectName)+"'start': "+'"{0}", '.format(inicioSessao)+"'end': " +'"{0}", '.format(fimSessao)+"'tasks': ["
+        header = header1 + header2
         cur = conn.execute('select TASK,  SHORT_NAME , sum(EVENT_TIME) from events where SESSION = ? group by 1,2', (session,))
         for row in cur.fetchall():
-            totalString = totalString + "TaskID: " + str(row[0]) + "=>" + row[1] + "=>" + format_time(row[2]) + "\n"
+            totalString = totalString + "{'taskId': " + '"{0}"'.format(str(row[0])) + "', 'tool': " + '"{0}"'.format(row[1]) + "', 'totalTime': " + '"{0}"'.format(format_time(row[2])) + "}, "
         g2 = Github(username,password).get_organization(org).get_repo(projectName).get_issue(int(issueID))
 
-        g2.create_comment(totalString)
+        finalString = header+totalString[:-2]+"]}"
+        #finalString.replace("'", '**')
+        #finalString.replace('"',"'")
+        #finalString.replace('**', '"')
+        finalString.replace('\\', '/')
+        
+        
+        g2.create_comment(finalString)
         conn.close()
         print('connection closed')
         sys.exit()
@@ -407,7 +293,7 @@ def main():
         sys.exit(1)
 
     msg = ctypes.wintypes.MSG()
-    if ccbox('Clique em "Continue" para finalizar a execucao da tarefa ou em "Cancel" para executar outra tarefa', 'Finalizar captacao'):
+    if ccbox('Clique em "Cancel" para finalizar a execucao da tarefa ou em "Continue" para executar outra tarefa', 'Finalizar captacao'):
         signal_handle(1)
     else:
         signal_handle(2)
@@ -423,18 +309,16 @@ def main():
     ole32.CoUninitialize()
 
 
-#Recebe o sinal de Ctrl + C ao final da execução 
-#signal.signal(signal.SIGINT, signal_handler)
 
 
 
 
 #Chama a função main e escreve os headers do arquivo .csv
 if __name__ == '__main__':
-    username = 'xanderayes'#enterbox('Digite o nome de usuario: ', 'username')
-    password = '966d3V87.'#passwordbox('Digite a senha: ', 'password')
-    org = 'TesteProGest'#enterbox("Digite o nome da organizacao: ", 'organization')
-    projectName = 'progest'#enterbox("Digite o nome do repositorio / projeto: ", 'repository')
+    username = enterbox('Digite o nome de usuario: ', 'username')
+    password = passwordbox('Digite a senha: ', 'password')
+    org = enterbox("Digite o nome da organizacao: ", 'organization')
+    projectName = enterbox("Digite o nome do repositorio / projeto: ", 'repository')
     taskID = integerbox("Digite o ID da tarefa / issue: ", 'issue')
 
     while (testAuth(username, password, org, projectName, int(taskID)) == 0):
