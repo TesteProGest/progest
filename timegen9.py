@@ -121,7 +121,7 @@ def signal_handle(answer):
         header = header1 + header2
         cur = conn.execute('select TASK,  SHORT_NAME , sum(EVENT_TIME) from events where SESSION = ? group by 1,2', (session,))
         for row in cur.fetchall():
-            totalString = totalString + "{'taskId': " + '"{0}"'.format(str(row[0])) + "', 'tool': " + '"{0}"'.format(row[1]) + "', 'totalTime': " + '"{0}"'.format(format_time(row[2])) + "}, "
+            totalString = totalString + "{'taskId': " + '"{0}"'.format(str(row[0])) + ", 'tool': " + '"{0}"'.format(row[1]) + ", 'totalTime': " + '"{0}"'.format(format_time(row[2])) + "}, "
         g2 = Github(username,password).get_organization(org).get_repo(projectName).get_issue(int(issueID))
 
         finalString = header+totalString[:-2]+"]}"
