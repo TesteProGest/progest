@@ -201,6 +201,7 @@ def issueMapper(i):
 #################################################################
 def points():
     try:
+        issue = ""
         #issue = input("Issue(opt): ")
         if issue == "":
             ## Lookup for all issues in repo
@@ -261,10 +262,10 @@ def start():
     print("\n")
     #print("Print events?")
     #v = input("(y/Y)(opt)?: ")
-    if v == "y" or v == "Y":
-        printEvents = True
-    else:
-        printEvents = False
+    #if v == "y" or v == "Y":
+    #    printEvents = True
+    #else:
+    #    printEvents = False
     points()
     print("\n")
 #################################################################
